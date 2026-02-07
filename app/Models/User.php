@@ -29,4 +29,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+    public function businessCard()
+{
+    return $this->hasOne(BusinessCard::class);
+}
+
 }
