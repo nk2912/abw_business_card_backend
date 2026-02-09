@@ -11,14 +11,28 @@ return new class extends Migration
      */
     public function up(): void
     {
-              Schema::create('business_cards', function (Blueprint $table) {
+        Schema::create('business_cards', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('full_name');
+
+            $table->foreignId('user_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            $table->foreignId('company_id')
+                ->nullable()
+                ->constrained()
+                ->restrictOnDelete();
+
             $table->string('position')->nullable();
-            $table->string('company_name')->nullable();
+
+            $table->json('phones')->nullable();
+            $table->json('emails')->nullable();
+            $table->json('addresses')->nullable();
+
             $table->text('bio')->nullable();
             $table->string('profile_image')->nullable();
+
+            $table->softDeletes();
             $table->timestamps();
         });
     }

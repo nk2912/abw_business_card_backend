@@ -6,25 +6,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-                Schema::create('social_links', function (Blueprint $table) {
+        Schema::create('company_socials', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('business_card_id')->constrained()->onDelete('cascade');
+
+            $table->foreignId('company_id')
+                ->constrained()
+                ->onDelete('cascade');
+
             $table->string('platform'); // facebook, linkedin, website
             $table->string('url');
+
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('social_links');
+        Schema::dropIfExists('company_socials');
     }
 };

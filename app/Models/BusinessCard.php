@@ -3,43 +3,36 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BusinessCard extends Model
 {
-    protected $table = 'business_cards';
-
+    use SoftDeletes;
     protected $fillable = [
         'user_id',
-        'full_name',
+        'company_id',
         'position',
-        'company_name',
+        'phones',
+        'emails',
+        'addresses',
         'bio',
         'profile_image',
     ];
 
-    /**
-     * One Business Card belongs to one User
-     */
-    public function user(): BelongsTo
+    protected $casts = [
+        'phones' => 'array',
+        'emails' => 'array',
+        'addresses' => 'array',
+    ];
+    protected $dates = ['deleted_at'];
+
+    public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * One Business Card has many contact infos
-     */
-    public function contactInfos(): HasMany
+    public function company()
     {
-        return $this->hasMany(ContactInfo::class);
-    }
-
-    /**
-     * One Business Card has many social links
-     */
-    public function socialLinks(): HasMany
-    {
-        return $this->hasMany(SocialLink::class);
+        return $this->belongsTo(Company::class);
     }
 }
