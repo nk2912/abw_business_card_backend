@@ -15,7 +15,12 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'otp',
+        'otp_expires_at',
+        'email_verified_at',
+        'is_verified'
     ];
+
 
     protected $hidden = [
         'password',
@@ -30,8 +35,7 @@ class User extends Authenticatable
         ];
     }
     public function businessCard()
-{
-    return $this->hasOne(BusinessCard::class);
-}
-
+    {
+        return $this->hasOne(BusinessCard::class);
+    }
 }
