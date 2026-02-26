@@ -42,39 +42,46 @@ class CompanyController extends Controller
      */
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'name'          => 'required|string',
-            'industry'      => 'required|string',
-            'business_type' => 'required|string',
-            'description'   => 'nullable|string',
-            'address'       => 'nullable|string',
-            'website'       => 'nullable|string',
-            'phone'         => 'nullable|string',
-            'email'         => 'nullable|email',
+        try {
+            $data = $request->validate([
+                'name'          => 'required|string',
+                'industry'      => 'required|string',
+                'business_type' => 'required|string',
+                'description'   => 'nullable|string',
+                'address'       => 'nullable|string',
+                'website'       => 'nullable|string',
+                'phone'         => 'nullable|string',
+                'email'         => 'nullable|email',
 
-            'socials'               => 'array',
-            'socials.*.platform'    => 'required|string',
-            'socials.*.url'         => 'required|url',
-        ]);
+                'socials'               => 'array',
+                'socials.*.platform'    => 'required|string',
+                'socials.*.url'         => 'required|url',
+            ]);
 
-        // create company with owner
-        $company = Company::create([
-            'created_by' => $request->user()->id,
-            ...collect($data)->except('socials')->toArray(),
-        ]);
+            // create company with owner
+            $company = Company::create([
+                'created_by' => $request->user()->id,
+                ...collect($data)->except('socials')->toArray(),
+            ]);
 
-        // save socials
-        if (!empty($data['socials'])) {
-            foreach ($data['socials'] as $social) {
-                $company->socials()->create($social);
+            // save socials
+            if (isset($data['socials']) && !empty($data['socials'])) {
+                foreach ($data['socials'] as $social) {
+                    $company->socials()->create($social);
+                }
             }
-        }
 
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Company created successfully',
-            'data'    => new CompanyResource($company->load('socials')),
-        ], 201);
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Company created successfully',
+                'data'    => new CompanyResource($company->load('socials')),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -129,7 +136,7 @@ class CompanyController extends Controller
         ]);
 
         // update socials
-        if (array_key_exists('socials', $data)) {
+        if (isset($data['socials'])) {
             $company->socials()->delete();
             foreach ($data['socials'] as $social) {
                 $company->socials()->create($social);

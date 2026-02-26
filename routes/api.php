@@ -32,6 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/me', [AuthController::class, 'me']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
 
@@ -45,6 +46,9 @@ Route::middleware('auth:sanctum')->group(function () {
     //Business-cards
     Route::get('/my-business-cards', [BusinessCardController::class, 'myCards']);
     Route::post('/business-cards', [BusinessCardController::class, 'store']);
+    Route::post('/business-cards/{id}/add-friend', [BusinessCardController::class, 'addFriend']); // Add Friend
+    Route::post('/business-cards/{id}/unfriend', [BusinessCardController::class, 'uncollectCard']); // Add this
+    Route::post('/business-cards/collect', [BusinessCardController::class, 'collectCard']); // Add this
     Route::put('/business-cards/{id}', [BusinessCardController::class, 'update']);
     Route::delete('/business-cards/{id}', [BusinessCardController::class, 'destroy']);
 });
