@@ -43,6 +43,14 @@ return new class extends Migration
             // timestamps
             $table->timestamps();
         });
+
+        Schema::create('company_socials', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
+            $table->string('platform');
+            $table->string('url');
+            $table->timestamps();
+        });
     }
 
     /**
@@ -50,6 +58,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('company_socials');
         Schema::dropIfExists('companies');
     }
 };

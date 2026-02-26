@@ -10,9 +10,9 @@ class CompanySocialResource extends JsonResource
     public function toArray($request)
     {
         return [
+            'id' => $this->id,
             'platform' => $this->platform,
             'url' => $this->url,
         ];
     }
 }
-

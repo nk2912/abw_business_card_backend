@@ -277,4 +277,15 @@ class AuthController extends Controller
             'token' => $token
         ]);
     }
+
+    // =========================
+    // ME (Get Current User)
+    // =========================
+    public function me(Request $request)
+    {
+        return response()->json([
+            'status' => 'success',
+            'user'   => $request->user(),
+        ]);
+    }
 }
