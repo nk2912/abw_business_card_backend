@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\BusinessCard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -119,15 +120,27 @@ class AuthController extends Controller
 
         $user->update([
             'name' => $request->name,
-            'password' => $request->password,
+            'password' => Hash::make($request->password), // Ensure password hashing
             'is_verified' => true
+        ]);
+
+        // Automatically create a default Business Card for the user
+        BusinessCard::create([
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'position' => 'Member', // Default position
+            'emails' => [$user->email], // Default email
+            'card_type' => 'my_card',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $token = $user->createToken('mobile')->plainTextToken;
 
         return response()->json([
             'token' => $token,
-            'user' => $user
+            'user' => $user,
+            'message' => 'Registration completed and Business Card created'
         ]);
     }
 

@@ -18,29 +18,25 @@ return new class extends Migration
                 ->constrained()
                 ->cascadeOnDelete();
 
+            // Additional fields
+            $table->string('name')->nullable();
+            $table->string('card_type')->default('my_card'); // my_card, user_card, manual_contact
+
             $table->foreignId('company_id')
                 ->nullable()
                 ->constrained()
                 ->restrictOnDelete();
 
-            $table->string('name')->nullable(); // Added name field
             $table->string('position')->nullable();
 
             $table->json('phones')->nullable();
             $table->json('emails')->nullable();
             $table->json('addresses')->nullable();
+            $table->json('social_links')->nullable();
 
             $table->text('bio')->nullable();
             $table->string('profile_image')->nullable();
-            
-            // "user_card" (another user) vs "my_card" (manual entry)
-            $table->string('card_type')->default('my_card'); 
-            
-            // QR Code Data
             $table->text('qr_code_data')->nullable();
-
-            // Social Links (replacing company_socials if needed here)
-            $table->json('social_links')->nullable();
 
             $table->softDeletes();
             $table->timestamps();

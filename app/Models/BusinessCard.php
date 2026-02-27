@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BusinessCard extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
+
     protected $fillable = [
         'user_id',
         'company_id',
@@ -29,7 +31,6 @@ class BusinessCard extends Model
         'addresses' => 'array',
         'social_links' => 'array',
     ];
-    protected $dates = ['deleted_at'];
 
     public function user()
     {
@@ -39,13 +40,5 @@ class BusinessCard extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
-    }
-    
-    // Cards that have added THIS card
-    public function addedByUsers()
-    {
-        return $this->belongsToMany(User::class, 'user_cards', 'business_card_id', 'user_id')
-                    ->withPivot(['is_friend', 'friend_status', 'tag'])
-                    ->withTimestamps();
     }
 }

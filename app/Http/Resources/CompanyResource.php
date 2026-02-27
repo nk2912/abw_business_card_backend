@@ -19,6 +19,7 @@ class CompanyResource extends JsonResource
             'website' => $this->website,
             'phone' => $this->phone,
             'email' => $this->email,
+            'created_by' => $this->created_by,
             'is_deleted' => $this->deleted_at !== null,
             'socials' => CompanySocialResource::collection(
                 $this->whenLoaded('socials')
