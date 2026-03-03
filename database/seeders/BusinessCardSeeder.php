@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\BusinessCard;
 use App\Models\Company;
+use App\Models\Friendship;
 
 class BusinessCardSeeder extends Seeder
 {
@@ -52,13 +53,13 @@ class BusinessCardSeeder extends Seeder
         ]);
 
         // ==========================================
-        // TYPE B: "My Card" (Manual Entry)
+        // TYPE B: "Saved Card" (Manual Entry)
         // ==========================================
         // You met "Alice" at a conference. She doesn't use the app.
         // You type her details manually into your account.
         BusinessCard::create([
             'user_id' => $me->id,        // Owned by YOU (in your list)
-            'card_type' => 'my_card',    // Manual entry
+            'card_type' => 'saved_card', // Manual entry
             'position' => 'Marketing Manager',
             'phones' => ['+1-555-0200'],
             'emails' => ['alice@marketing.com'],
@@ -73,12 +74,11 @@ class BusinessCardSeeder extends Seeder
         // ==========================================
         // You scan John's QR code and add him as a friend.
         // This links YOU to John's EXISTING card.
-        $me->collectedCards()->attach($johnsCard->id, [
-            'is_friend' => true,
-            'friend_status' => 'accepted',
-            'tag' => 'Work Friend',
-            'created_at' => now(),
-            'updated_at' => now(),
+        Friendship::create([
+            'requester_user_id' => $me->id,
+            'receiver_user_id' => $friendUser->id,
+            'status' => 'accepted',
+            'accepted_at' => now(),
         ]);
     }
 }

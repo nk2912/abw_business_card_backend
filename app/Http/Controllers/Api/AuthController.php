@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Str; // Added import
 use Carbon\Carbon;
 
 class AuthController extends Controller
@@ -130,7 +131,8 @@ class AuthController extends Controller
             'name' => $user->name,
             'position' => 'Member', // Default position
             'emails' => [$user->email], // Default email
-            'card_type' => 'my_card',
+            'card_type' => 'user_card', // Default is user_card (profile)
+            'qr_code_data' => 'user-' . $user->id . '-' . Str::uuid(), // Auto-generate QR Code
             'created_at' => now(),
             'updated_at' => now(),
         ]);

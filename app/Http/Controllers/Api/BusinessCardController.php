@@ -3,95 +3,167 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\BusinessCard;
 use App\Http\Resources\BusinessCardResource;
+use App\Models\BusinessCard;
+use App\Models\Friendship;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class BusinessCardController extends Controller
 {
-    /**
-     * PUBLIC
-     * Show all business cards
-     */
-    public function index()
+    public function index(Request $request)
     {
-        $cards = BusinessCard::with(['company', 'user'])
-            ->latest()
-            ->get();
+        $currentUser = auth('sanctum')->user();
+
+        if ($currentUser) {
+            $ownCards = BusinessCard::with(['company', 'user'])
+                ->where('user_id', $currentUser->id)
+                ->latest()
+                ->get()
+                ->map(fn (BusinessCard $card) => $this->attachFriendState($card, $currentUser));
+
+            $friendIds = $this->acceptedFriendUserIds($currentUser);
+
+            $friendCards = BusinessCard::with(['company', 'user'])
+                ->where('card_type', 'user_card')
+                ->whereIn('user_id', $friendIds)
+                ->latest()
+                ->get()
+                ->map(fn (BusinessCard $card) => $this->attachFriendState($card, $currentUser));
+
+            $cards = $ownCards->concat($friendCards)->unique('id')->values();
+        } else {
+            $cards = BusinessCard::with(['company', 'user'])->latest()->get();
+        }
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Business cards fetched successfully',
-            'data'    => BusinessCardResource::collection($cards),
+            'data' => BusinessCardResource::collection($cards),
         ], 200);
     }
 
-    /**
-     * PUBLIC
-     * Get single business card by ID
-     */
     public function show($id)
     {
         $card = BusinessCard::with(['company', 'user'])->find($id);
 
         if (!$card) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Business card not found',
             ], 404);
         }
 
+        $currentUser = auth('sanctum')->user();
+        if ($currentUser) {
+            $card = $this->attachFriendState($card, $currentUser);
+        }
+
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Business card fetched successfully',
-            'data'    => new BusinessCardResource($card),
+            'data' => new BusinessCardResource($card),
         ], 200);
     }
 
-    /**
-     * PROTECTED
-     * Get current user's business cards
-     */
     public function myCards(Request $request)
     {
         $cards = BusinessCard::with(['company', 'user'])
             ->where('user_id', $request->user()->id)
             ->latest()
-            ->get();
+            ->get()
+            ->map(fn (BusinessCard $card) => $this->attachFriendState($card, $request->user()));
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'My business cards fetched successfully',
-            'data'    => BusinessCardResource::collection($cards),
+            'data' => BusinessCardResource::collection($cards),
         ], 200);
     }
 
-    /**
-     * PROTECTED
-     * Create business card
-     */
+    public function search(Request $request)
+    {
+        $query = $request->input('query');
+        $companyId = $request->input('company_id');
+        $cardType = $request->input('card_type', 'user_card');
+
+        if (empty($query) && empty($companyId)) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'No search parameters provided',
+                'data' => [],
+            ], 200);
+        }
+
+        $cards = BusinessCard::with(['company', 'user'])
+            ->where('card_type', $cardType)
+            ->where('user_id', '!=', $request->user()->id)
+            ->where(function ($q) use ($query) {
+                if (!empty($query)) {
+                    $q->where('name', 'like', "%{$query}%")
+                        ->orWhere('position', 'like', "%{$query}%")
+                        ->orWhereHas('user', function ($userQuery) use ($query) {
+                            $userQuery->where('name', 'like', "%{$query}%");
+                        });
+                }
+            })
+            ->when($companyId, function ($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            })
+            ->latest()
+            ->get()
+            ->map(fn (BusinessCard $card) => $this->attachFriendState($card, $request->user()));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Search results',
+            'data' => BusinessCardResource::collection($cards),
+        ], 200);
+    }
+
+    public function scanQr(Request $request)
+    {
+        $request->validate([
+            'qr_code_data' => 'required|string',
+        ]);
+
+        $card = BusinessCard::with(['company', 'user'])
+            ->where('qr_code_data', $request->input('qr_code_data'))
+            ->first();
+
+        if (!$card) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Business card not found for this QR code',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Card found',
+            'data' => new BusinessCardResource($this->attachFriendState($card, $request->user())),
+        ], 200);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'          => 'nullable|string|max:255',
-            'company_id'    => 'nullable|exists:companies,id',
-            'position'      => 'nullable|string|max:255',
-
-            'phones'        => 'nullable|array',
-            'phones.*'      => 'string|min:6',
-
-            'emails'        => 'nullable|array',
-            'emails.*'      => 'email',
-
-            'addresses'     => 'nullable|array',
-            'addresses.*'   => 'string|max:255',
-
-            'bio'           => 'nullable|string',
-            'profile_image' => 'nullable', // file or string
-            
-            'card_type'     => 'nullable|string|in:my_card,user_card,manual_contact',
-            'qr_code_data'  => 'nullable|string',
-            'social_links'  => 'nullable|array',
+            'name' => 'nullable|string|max:255',
+            'company_id' => 'nullable|exists:companies,id',
+            'position' => 'nullable|string|max:255',
+            'phones' => 'nullable|array',
+            'phones.*' => 'string|min:6',
+            'emails' => 'nullable|array',
+            'emails.*' => 'email',
+            'addresses' => 'nullable|array',
+            'addresses.*' => 'string|max:255',
+            'bio' => 'nullable|string',
+            'profile_image' => 'nullable',
+            'card_type' => 'nullable|string|in:user_card,saved_card',
+            'qr_code_data' => 'nullable|string',
+            'social_links' => 'nullable|array',
         ]);
 
         $imagePath = null;
@@ -101,8 +173,15 @@ class BusinessCardController extends Controller
         } elseif ($request->input('profile_image') && is_string($request->input('profile_image'))) {
             $imagePath = $request->input('profile_image');
         }
-        
-        $cardData = [
+
+        $cardType = $data['card_type'] ?? 'user_card';
+        $qrCodeData = $data['qr_code_data'] ?? null;
+
+        if ($cardType === 'user_card' && empty($qrCodeData)) {
+            $qrCodeData = 'user-' . $request->user()->id . '-' . Str::uuid();
+        }
+
+        $card = BusinessCard::create([
             'user_id' => $request->user()->id,
             'name' => $data['name'] ?? null,
             'company_id' => $data['company_id'] ?? null,
@@ -111,30 +190,21 @@ class BusinessCardController extends Controller
             'emails' => $data['emails'] ?? [],
             'addresses' => $data['addresses'] ?? [],
             'bio' => $data['bio'] ?? null,
-            'card_type' => $data['card_type'] ?? 'my_card',
-            'qr_code_data' => $data['qr_code_data'] ?? null,
+            'card_type' => $cardType,
+            'qr_code_data' => $qrCodeData,
             'social_links' => $data['social_links'] ?? [],
-        ];
-
-        if ($imagePath) {
-            $cardData['profile_image'] = $imagePath;
-        }
-
-        $card = BusinessCard::create($cardData);
+            'profile_image' => $imagePath,
+        ]);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Business card created successfully',
-            'data'    => new BusinessCardResource(
-                $card->load(['company', 'user'])
+            'data' => new BusinessCardResource(
+                $this->attachFriendState($card->load(['company', 'user']), $request->user())
             ),
         ], 201);
     }
 
-    /**
-     * PROTECTED
-     * Update business card
-     */
     public function update(Request $request, $id)
     {
         $card = BusinessCard::where('id', $id)
@@ -143,31 +213,26 @@ class BusinessCardController extends Controller
 
         if (!$card) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Business card not found or unauthorized',
             ], 404);
         }
 
         $data = $request->validate([
-            'name'          => 'nullable|string|max:255',
-            'company_id'    => 'nullable|exists:companies,id',
-            'position'      => 'nullable|string|max:255',
-
-            'phones'        => 'nullable|array',
-            'phones.*'      => 'string|min:6',
-
-            'emails'        => 'nullable|array',
-            'emails.*'      => 'email',
-
-            'addresses'     => 'nullable|array',
-            'addresses.*'   => 'string|max:255',
-
-            'bio'           => 'nullable|string',
+            'name' => 'nullable|string|max:255',
+            'company_id' => 'nullable|exists:companies,id',
+            'position' => 'nullable|string|max:255',
+            'phones' => 'nullable|array',
+            'phones.*' => 'string|min:6',
+            'emails' => 'nullable|array',
+            'emails.*' => 'email',
+            'addresses' => 'nullable|array',
+            'addresses.*' => 'string|max:255',
+            'bio' => 'nullable|string',
             'profile_image' => 'nullable',
-            
-            'card_type'     => 'nullable|string',
-            'qr_code_data'  => 'nullable|string',
-            'social_links'  => 'nullable|array',
+            'card_type' => 'nullable|string',
+            'qr_code_data' => 'nullable|string',
+            'social_links' => 'nullable|array',
         ]);
 
         $updateData = [
@@ -193,18 +258,14 @@ class BusinessCardController extends Controller
         $card->update($updateData);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Business card updated successfully',
-            'data'    => new BusinessCardResource(
-                $card->refresh()->load(['company', 'user'])
+            'data' => new BusinessCardResource(
+                $this->attachFriendState($card->refresh()->load(['company', 'user']), $request->user())
             ),
         ], 200);
     }
 
-    /**
-     * PROTECTED
-     * Delete business card
-     */
     public function destroy(Request $request, $id)
     {
         $card = BusinessCard::where('id', $id)
@@ -213,7 +274,7 @@ class BusinessCardController extends Controller
 
         if (!$card) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Business card not found or unauthorized',
             ], 404);
         }
@@ -221,8 +282,242 @@ class BusinessCardController extends Controller
         $card->delete();
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Business card deleted successfully',
         ], 200);
+    }
+
+    public function addFriend(Request $request, $id)
+    {
+        $currentUser = $request->user();
+        $card = BusinessCard::with(['company', 'user'])->find($id);
+
+        if (!$card || $card->card_type !== 'user_card') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Card not found',
+            ], 404);
+        }
+
+        if ($card->user_id === $currentUser->id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'You cannot send a friend request to your own card',
+            ], 422);
+        }
+
+        $friendship = $this->findFriendship($currentUser->id, $card->user_id);
+
+        if ($friendship) {
+            if ($friendship->status === 'accepted') {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Already friends',
+                    'data' => new BusinessCardResource($this->attachFriendState($card, $currentUser)),
+                ], 200);
+            }
+
+            if ($friendship->requester_user_id === $card->user_id && $friendship->status === 'pending') {
+                $friendship->update([
+                    'status' => 'accepted',
+                    'accepted_at' => now(),
+                ]);
+            } else {
+                $friendship->update([
+                    'status' => 'pending',
+                    'accepted_at' => null,
+                ]);
+            }
+        } else {
+            Friendship::create([
+                'requester_user_id' => $currentUser->id,
+                'receiver_user_id' => $card->user_id,
+                'status' => 'pending',
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Friend request sent successfully',
+            'data' => new BusinessCardResource($this->attachFriendState($card, $currentUser)),
+        ], 200);
+    }
+
+    public function friendRequests(Request $request)
+    {
+        $requesterIds = Friendship::query()
+            ->where('receiver_user_id', $request->user()->id)
+            ->where('status', 'pending')
+            ->pluck('requester_user_id');
+
+        $requestCards = BusinessCard::with(['company', 'user'])
+            ->where('card_type', 'user_card')
+            ->whereIn('user_id', $requesterIds)
+            ->latest()
+            ->get()
+            ->map(function (BusinessCard $card) use ($request) {
+                $card->friend_request_status = 'pending';
+                $card->friend_status = 'pending';
+                $card->is_friend = false;
+                return $this->attachFriendState($card, $request->user());
+            });
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Friend requests fetched successfully',
+            'data' => BusinessCardResource::collection($requestCards),
+        ], 200);
+    }
+
+    public function acceptFriendRequest(Request $request, $id)
+    {
+        $requesterCard = BusinessCard::with(['company', 'user'])->find($id);
+
+        if (!$requesterCard) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Friend request card not found',
+            ], 404);
+        }
+
+        $friendship = Friendship::query()
+            ->where('requester_user_id', $requesterCard->user_id)
+            ->where('receiver_user_id', $request->user()->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if (!$friendship) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pending friend request not found',
+            ], 404);
+        }
+
+        $friendship->update([
+            'status' => 'accepted',
+            'accepted_at' => now(),
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Friend request accepted',
+            'data' => new BusinessCardResource($this->attachFriendState($requesterCard, $request->user())),
+        ], 200);
+    }
+
+    public function rejectFriendRequest(Request $request, $id)
+    {
+        $requesterCard = BusinessCard::find($id);
+
+        if (!$requesterCard) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Friend request card not found',
+            ], 404);
+        }
+
+        $friendship = Friendship::query()
+            ->where('requester_user_id', $requesterCard->user_id)
+            ->where('receiver_user_id', $request->user()->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if (!$friendship) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pending friend request not found',
+            ], 404);
+        }
+
+        $friendship->update([
+            'status' => 'rejected',
+            'accepted_at' => null,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Friend request rejected',
+        ], 200);
+    }
+
+    public function removeFriend(Request $request, $id)
+    {
+        $friendCard = BusinessCard::find($id);
+
+        if (!$friendCard) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Friend card not found',
+            ], 404);
+        }
+
+        $friendship = $this->findFriendship($request->user()->id, $friendCard->user_id);
+
+        if (!$friendship) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Friendship not found',
+            ], 404);
+        }
+
+        $friendship->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Friend removed successfully',
+        ], 200);
+    }
+
+    private function attachFriendState(BusinessCard $card, ?User $viewer): BusinessCard
+    {
+        $card->is_friend = false;
+        $card->friend_status = 'none';
+        $card->friend_request_status = 'none';
+
+        if (!$viewer || !$card->user_id || $viewer->id === $card->user_id) {
+            return $card;
+        }
+
+        $friendship = $this->findFriendship($viewer->id, $card->user_id);
+        if (!$friendship) {
+            return $card;
+        }
+
+        $card->friend_status = $friendship->status;
+        $card->friend_request_status = $friendship->status;
+        $card->is_friend = $friendship->status === 'accepted';
+
+        return $card;
+    }
+
+    private function acceptedFriendUserIds(User $user): Collection
+    {
+        return Friendship::query()
+            ->where('status', 'accepted')
+            ->where(function ($query) use ($user) {
+                $query->where('requester_user_id', $user->id)
+                    ->orWhere('receiver_user_id', $user->id);
+            })
+            ->get()
+            ->map(function (Friendship $friendship) use ($user) {
+                return $friendship->requester_user_id === $user->id
+                    ? $friendship->receiver_user_id
+                    : $friendship->requester_user_id;
+            })
+            ->values();
+    }
+
+    private function findFriendship(int $firstUserId, int $secondUserId): ?Friendship
+    {
+        return Friendship::query()
+            ->where(function ($query) use ($firstUserId, $secondUserId) {
+                $query->where('requester_user_id', $firstUserId)
+                    ->where('receiver_user_id', $secondUserId);
+            })
+            ->orWhere(function ($query) use ($firstUserId, $secondUserId) {
+                $query->where('requester_user_id', $secondUserId)
+                    ->where('receiver_user_id', $firstUserId);
+            })
+            ->first();
     }
 }

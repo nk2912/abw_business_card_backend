@@ -20,7 +20,7 @@ return new class extends Migration
 
             // Additional fields
             $table->string('name')->nullable();
-            $table->string('card_type')->default('my_card'); // my_card, user_card, manual_contact
+            $table->string('card_type')->default('user_card'); // user_card (profile), saved_card (manual/others)
 
             $table->foreignId('company_id')
                 ->nullable()
@@ -36,7 +36,7 @@ return new class extends Migration
 
             $table->text('bio')->nullable();
             $table->string('profile_image')->nullable();
-            $table->text('qr_code_data')->nullable();
+            $table->text('qr_code_data')->nullable(); // Required for user_card
 
             $table->softDeletes();
             $table->timestamps();

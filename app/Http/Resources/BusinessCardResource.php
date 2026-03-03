@@ -22,12 +22,12 @@ class BusinessCardResource extends JsonResource
             
             'card_type'     => $this->card_type,
             'qr_code_data'  => $this->qr_code_data,
+            'friend_request_status' => $this->friend_request_status ?? 'none',
             'social_links'  => $this->social_links ?? [],
             
-            // Pivot data (if collected)
-            'is_friend'     => $this->pivot?->is_friend ?? false,
-            'friend_status' => $this->pivot?->friend_status ?? 'none',
-            'tag'           => $this->pivot?->tag,
+            'is_friend'     => (bool) ($this->is_friend ?? false),
+            'friend_status' => $this->friend_status ?? 'none',
+            'tag'           => $this->tag,
 
             'company'       => $this->whenLoaded('company', function () {
                 return new CompanyResource($this->company);

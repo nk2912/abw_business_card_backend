@@ -38,12 +38,19 @@ class User extends Authenticatable
     {
         return $this->hasOne(BusinessCard::class);
     }
-    
-    // Cards I have collected/added
-    public function collectedCards()
+
+    public function businessCards()
     {
-        return $this->belongsToMany(BusinessCard::class, 'user_cards', 'user_id', 'business_card_id')
-                    ->withPivot(['is_friend', 'friend_status', 'tag'])
-                    ->withTimestamps();
+        return $this->hasMany(BusinessCard::class);
+    }
+
+    public function sentFriendRequests()
+    {
+        return $this->hasMany(Friendship::class, 'requester_user_id');
+    }
+
+    public function receivedFriendRequests()
+    {
+        return $this->hasMany(Friendship::class, 'receiver_user_id');
     }
 }

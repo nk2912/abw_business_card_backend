@@ -21,7 +21,7 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // business cards
 Route::get('/business-cards', [BusinessCardController::class, 'index']);
-Route::get('/business-cards/{id}', [BusinessCardController::class, 'show']);
+Route::get('/business-cards/{id}', [BusinessCardController::class, 'show'])->whereNumber('id');
 
 /*
 |--------------------------------------------------------------------------
@@ -45,10 +45,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     //Business-cards
     Route::get('/my-business-cards', [BusinessCardController::class, 'myCards']);
+    Route::get('/business-cards/search', [BusinessCardController::class, 'search']); // Add Search
+    Route::get('/business-cards/friend-requests', [BusinessCardController::class, 'friendRequests']);
+    Route::post('/business-cards/scan-qr', [BusinessCardController::class, 'scanQr']); // Add Scan
     Route::post('/business-cards', [BusinessCardController::class, 'store']);
     Route::post('/business-cards/{id}/add-friend', [BusinessCardController::class, 'addFriend']); // Add Friend
-    Route::post('/business-cards/{id}/unfriend', [BusinessCardController::class, 'uncollectCard']); // Add this
-    Route::post('/business-cards/collect', [BusinessCardController::class, 'collectCard']); // Add this
-    Route::put('/business-cards/{id}', [BusinessCardController::class, 'update']);
-    Route::delete('/business-cards/{id}', [BusinessCardController::class, 'destroy']);
+    Route::post('/business-cards/{id}/accept-friend', [BusinessCardController::class, 'acceptFriendRequest'])->whereNumber('id');
+    Route::post('/business-cards/{id}/reject-friend', [BusinessCardController::class, 'rejectFriendRequest'])->whereNumber('id');
+    Route::post('/business-cards/{id}/unfriend', [BusinessCardController::class, 'removeFriend'])->whereNumber('id');
+    Route::put('/business-cards/{id}', [BusinessCardController::class, 'update'])->whereNumber('id');
+    Route::delete('/business-cards/{id}', [BusinessCardController::class, 'destroy'])->whereNumber('id');
 });
