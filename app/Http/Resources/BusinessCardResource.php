@@ -39,6 +39,10 @@ class BusinessCardResource extends JsonResource
                     'name' => $this->user->name,
                 ];
             }),
+            'request_created_at_myanmar' => $this->request_created_at
+                ? $this->request_created_at->copy()->timezone('Asia/Yangon')->toIso8601String()
+                : null,
+            'request_created_at' => $this->request_created_at?->toDateTimeString(),
             'created_at'    => $this->created_at?->toDateTimeString(),
             'updated_at'    => $this->updated_at?->toDateTimeString(),
         ];

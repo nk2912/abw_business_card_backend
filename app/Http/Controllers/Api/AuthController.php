@@ -23,6 +23,9 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email'
+        ], [
+            'email.required' => 'Email is required',
+            'email.email' => 'Email format is invalid',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -178,7 +181,8 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user' => $user
+            'user' => $user,
+            'message' => 'Logged in successfully'
         ]);
     }
 

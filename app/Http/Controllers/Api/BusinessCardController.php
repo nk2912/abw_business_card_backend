@@ -345,20 +345,26 @@ class BusinessCardController extends Controller
 
     public function friendRequests(Request $request)
     {
-        $requesterIds = Friendship::query()
+        $friendships = Friendship::query()
             ->where('receiver_user_id', $request->user()->id)
             ->where('status', 'pending')
-            ->pluck('requester_user_id');
+            ->get();
+
+        $requesterIds = $friendships->pluck('requester_user_id');
+        $friendshipsByRequester = $friendships->keyBy('requester_user_id');
 
         $requestCards = BusinessCard::with(['company', 'user'])
             ->where('card_type', 'user_card')
             ->whereIn('user_id', $requesterIds)
             ->latest()
             ->get()
-            ->map(function (BusinessCard $card) use ($request) {
+            ->map(function (BusinessCard $card) use ($request, $friendshipsByRequester) {
                 $card->friend_request_status = 'pending';
                 $card->friend_status = 'pending';
                 $card->is_friend = false;
+                $card->request_created_at = optional(
+                    $friendshipsByRequester->get($card->user_id)
+                )->created_at;
                 return $this->attachFriendState($card, $request->user());
             });
 
