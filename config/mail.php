@@ -40,7 +40,8 @@ return [
         'smtp' => [
             'transport' => 'smtp',
             // Support both Laravel 11 MAIL_SCHEME and older/common MAIL_ENCRYPTION env names.
-            'scheme' => env('MAIL_SCHEME', env('MAIL_ENCRYPTION')),
+            'scheme' => env('MAIL_SCHEME', 'smtp'),
+
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),
