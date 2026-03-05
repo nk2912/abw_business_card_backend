@@ -23,24 +23,25 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Workdir
 WORKDIR /var/www/html
 
-# Copy project files
-COPY . .
+# Copy only composer files first (better cache)
+COPY composer.json composer.lock ./
 
 # Install PHP dependencies
 RUN composer install --no-dev --prefer-dist --optimize-autoloader
 
-# Laravel optimizations (safe)
-RUN php artisan config:clear || true \
- && php artisan route:clear || true \
- && php artisan view:clear  || true
+# Copy the rest of the project
+COPY . .
 
 # Permissions (Apache user)
 RUN chown -R www-data:www-data /var/www/html \
  && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Render uses $PORT - Apache normally listens on 80, but Render maps port -> container 80 OK.
-# Expose 80 for local usage (Render ignores EXPOSE, but ok)
+# Add start script (runs migrate then starts apache)
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Expose 80 for local usage
 EXPOSE 80
 
-# Start Apache
-CMD ["apache2-foreground"]
+# Start (migrate + apache)
+CMD ["/start.sh"]
