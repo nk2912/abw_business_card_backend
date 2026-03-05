@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Str; // Added import
 use Carbon\Carbon;
@@ -48,13 +49,26 @@ class AuthController extends Controller
             ]
         );
 
-        Mail::raw(
-            "Your BusinessCard4U verification code is: $otp",
-            function ($message) use ($request) {
-                $message->to($request->email)
-                    ->subject('BusinessCard4U OTP Code');
-            }
-        );
+        try {
+            Mail::raw(
+                "Your BusinessCard4U verification code is: $otp",
+                function ($message) use ($request) {
+                    $message->to($request->email)
+                        ->subject('BusinessCard4U OTP Code');
+                }
+            );
+        } catch (\Throwable $e) {
+            Log::error('OTP email send failed', [
+                'email' => $request->email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'OTP created but email delivery failed',
+                'error' => app()->isProduction() ? null : $e->getMessage(),
+            ], 500);
+        }
 
         return response()->json([
             'success' => true,
