@@ -54,6 +54,7 @@ class AuthController extends Controller
         } catch (\Throwable $e) {
             Log::error('OTP email send failed', [
                 'email' => $request->email,
+                'exception' => $e::class,
                 'error' => $e->getMessage(),
             ]);
 
