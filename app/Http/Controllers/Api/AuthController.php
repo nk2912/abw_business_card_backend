@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\BusinessCard;
-use App\Services\BrevoMailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Str; // Added import
 use Carbon\Carbon;
@@ -20,7 +20,7 @@ class AuthController extends Controller
     // =========================
     // SEND OTP (Register Step 1)
     // =========================
-    public function sendOtp(Request $request, BrevoMailer $brevoMailer)
+    public function sendOtp(Request $request)
     {
         $request->validate([
             'email' => 'required|email'
@@ -50,7 +50,16 @@ class AuthController extends Controller
         );
 
         try {
-            $brevoMailer->sendOtp($request->email, $otp);
+            $mailer = config('services.resend.key') ? 'resend' : config('mail.default');
+
+            Mail::mailer($mailer)->raw(
+                "Your BusinessCard4U verification code is: {$otp}",
+                function ($message) use ($request) {
+                    $message
+                        ->to($request->email)
+                        ->subject('BusinessCard4U OTP Code');
+                }
+            );
         } catch (\Throwable $e) {
             Log::error('OTP email send failed', [
                 'email' => $request->email,
