@@ -50,9 +50,7 @@ class AuthController extends Controller
         );
 
         try {
-            $mailer = config('services.resend.key') ? 'resend' : config('mail.default');
-
-            Mail::mailer($mailer)->raw(
+            Mail::mailer(config('mail.default'))->raw(
                 "Your BusinessCard4U verification code is: {$otp}",
                 function ($message) use ($request) {
                     $message
