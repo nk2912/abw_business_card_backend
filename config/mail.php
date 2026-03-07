@@ -1,5 +1,18 @@
 <?php
 
+$mailEncryption = env('MAIL_ENCRYPTION');
+$mailScheme = env('MAIL_SCHEME');
+
+if (!$mailScheme) {
+    $normalizedEncryption = is_string($mailEncryption) ? strtolower($mailEncryption) : null;
+
+    $mailScheme = match ($normalizedEncryption) {
+        'ssl' => 'smtps',
+        'tls', null, '' => 'smtp',
+        default => $normalizedEncryption,
+    };
+}
+
 return [
 
     /*
@@ -39,8 +52,8 @@ return [
 
         'smtp' => [
             'transport' => 'smtp',
-            // Support both Laravel 11 MAIL_SCHEME and older/common MAIL_ENCRYPTION env names.
-            'scheme' => env('MAIL_SCHEME', env('MAIL_ENCRYPTION')),
+            // Map legacy MAIL_ENCRYPTION values onto Symfony-supported schemes.
+            'scheme' => $mailScheme,
 
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
