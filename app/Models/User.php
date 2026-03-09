@@ -18,7 +18,9 @@ class User extends Authenticatable
         'otp',
         'otp_expires_at',
         'email_verified_at',
-        'is_verified'
+        'is_verified',
+        'deactivated_at',
+        'reactivation_deadline_at',
     ];
 
 
@@ -31,6 +33,8 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'deactivated_at' => 'datetime',
+            'reactivation_deadline_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

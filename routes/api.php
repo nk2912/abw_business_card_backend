@@ -35,6 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me', [AuthController::class, 'me']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
+    Route::post('/deactivate-account', [AuthController::class, 'deactivateAccount']);
 
     // Company
     Route::get('/companies', [CompanyController::class, 'index']);

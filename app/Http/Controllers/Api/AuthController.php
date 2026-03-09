@@ -191,6 +191,26 @@ class AuthController extends Controller
             ], 403);
         }
 
+        $message = 'Logged in successfully';
+
+        if ($user->deactivated_at !== null) {
+            if (
+                $user->reactivation_deadline_at !== null &&
+                now()->greaterThan($user->reactivation_deadline_at)
+            ) {
+                return response()->json([
+                    'message' => 'Your account can no longer be restored. Please contact support.'
+                ], 403);
+            }
+
+            $user->forceFill([
+                'deactivated_at' => null,
+                'reactivation_deadline_at' => null,
+            ])->save();
+
+            $message = 'Your account has been restored successfully';
+        }
+
         $user->tokens()->delete();
 
         $token = $user->createToken('mobile')->plainTextToken;
@@ -198,7 +218,7 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'user' => $user,
-            'message' => 'Logged in successfully'
+            'message' => $message
         ]);
     }
 
@@ -212,6 +232,35 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Logged out successfully'
+        ]);
+    }
+
+    public function deactivateAccount(Request $request)
+    {
+        $request->validate([
+            'password' => 'required',
+        ], [
+            'password.required' => 'Password is required',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Your password is incorrect',
+            ], 403);
+        }
+
+        $user->forceFill([
+            'deactivated_at' => now(),
+            'reactivation_deadline_at' => now()->addDays(7),
+        ])->save();
+
+        $user->tokens()->delete();
+
+        return response()->json([
+            'message' => 'Your account has been deactivated. Log in again within 7 days to restore it.',
+            'reactivation_deadline_at' => optional($user->reactivation_deadline_at)->toIso8601String(),
         ]);
     }
 
