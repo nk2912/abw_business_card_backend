@@ -9,6 +9,7 @@ use App\Models\Friendship;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str as SupportStr;
 use Illuminate\Support\Str;
 
 class BusinessCardController extends Controller
@@ -168,10 +169,9 @@ class BusinessCardController extends Controller
 
         $imagePath = null;
         if ($request->hasFile('profile_image')) {
-            $path = $request->file('profile_image')->store('profile_images', 'public');
-            $imagePath = asset('storage/' . $path);
+            $imagePath = $request->file('profile_image')->store('profile_images', 'public');
         } elseif ($request->input('profile_image') && is_string($request->input('profile_image'))) {
-            $imagePath = $request->input('profile_image');
+            $imagePath = $this->normalizeProfileImagePath($request->input('profile_image'));
         }
 
         $cardType = $data['card_type'] ?? 'user_card';
@@ -249,10 +249,9 @@ class BusinessCardController extends Controller
         ];
 
         if ($request->hasFile('profile_image')) {
-            $path = $request->file('profile_image')->store('profile_images', 'public');
-            $updateData['profile_image'] = asset('storage/' . $path);
+            $updateData['profile_image'] = $request->file('profile_image')->store('profile_images', 'public');
         } elseif ($request->input('profile_image') && is_string($request->input('profile_image'))) {
-            $updateData['profile_image'] = $request->input('profile_image');
+            $updateData['profile_image'] = $this->normalizeProfileImagePath($request->input('profile_image'));
         }
 
         $card->update($updateData);
@@ -525,5 +524,29 @@ class BusinessCardController extends Controller
                     ->where('receiver_user_id', $firstUserId);
             })
             ->first();
+    }
+
+    private function normalizeProfileImagePath(string $value): string
+    {
+        $trimmed = trim($value);
+
+        if ($trimmed === '') {
+            return $trimmed;
+        }
+
+        if (SupportStr::startsWith($trimmed, ['http://', 'https://'])) {
+            $path = parse_url($trimmed, PHP_URL_PATH);
+            if (is_string($path) && str_contains($path, '/storage/')) {
+                return ltrim(substr($path, strpos($path, '/storage/') + 9), '/');
+            }
+
+            return $trimmed;
+        }
+
+        if (str_contains($trimmed, '/storage/')) {
+            return ltrim(substr($trimmed, strpos($trimmed, '/storage/') + 9), '/');
+        }
+
+        return ltrim($trimmed, '/');
     }
 }
