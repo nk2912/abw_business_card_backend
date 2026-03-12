@@ -39,6 +39,7 @@ class AuthController extends Controller
         }
 
         $otp = rand(100000, 999999);
+        $otpMailer = config('mail.otp_mailer', 'failover');
 
         $user = User::updateOrCreate(
             ['email' => $request->email],
@@ -50,7 +51,7 @@ class AuthController extends Controller
         );
 
         try {
-            Mail::mailer(config('mail.default'))->raw(
+            Mail::mailer($otpMailer)->raw(
                 "Your BusinessCard4U verification code is: {$otp}",
                 function ($message) use ($request) {
                     $message
@@ -61,6 +62,7 @@ class AuthController extends Controller
         } catch (\Throwable $e) {
             Log::error('OTP email send failed', [
                 'email' => $request->email,
+                'mailer' => $otpMailer,
                 'exception' => $e::class,
                 'error' => $e->getMessage(),
             ]);
@@ -68,14 +70,22 @@ class AuthController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'OTP created but email delivery failed',
+                'otp' => app()->isLocal() ? (string) $otp : null,
                 'error' => app()->isProduction() ? null : $e->getMessage(),
             ], 500);
         }
 
-        return response()->json([
+        $response = [
             'success' => true,
             'message' => 'OTP sent successfully'
-        ], 200);
+        ];
+
+        if (app()->isLocal()) {
+            $response['otp'] = (string) $otp;
+            $response['delivery'] = $otpMailer === 'log' ? 'logged' : 'sent_or_logged';
+        }
+
+        return response()->json($response, 200);
     }
 
 

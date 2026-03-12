@@ -31,6 +31,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | OTP Mailer
+    |--------------------------------------------------------------------------
+    |
+    | OTP delivery should degrade safely when SMTP is unavailable. By default
+    | we use the failover transport so Laravel can fall back to the log mailer
+    | instead of crashing the request path.
+    |
+    */
+
+    'otp_mailer' => env('OTP_MAILER', 'failover'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Mailer Configurations
     |--------------------------------------------------------------------------
     |
