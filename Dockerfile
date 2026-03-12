@@ -1,6 +1,7 @@
 FROM php:8.2-apache
 
-RUN a2enmod rewrite headers
+RUN a2dismod mpm_event mpm_worker \
+ && a2enmod mpm_prefork rewrite headers
 
 RUN apt-get update && apt-get install -y \
     git unzip libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
